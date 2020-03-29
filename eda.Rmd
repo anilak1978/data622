@@ -1,0 +1,379 @@
+---
+title: "Question 2 - EDA of Junk Datasets"
+author: "Anil Akyildirim"
+date: "3/25/2020"
+output:
+  html_document: default
+  pdf_document: default
+---
+# Introduction
+
+Our client gave us two data sets for exploratory analysis. We will provide explanotory data analysis and provide insights and actions. 
+
+# Data Colleciton
+
+```{r}
+#load libraries
+library(ggplot2)
+library(ggcorrplot)
+library(statsr)
+library(dplyr)
+library(dplyr)
+library(psych)
+library(corrplot)
+library(PerformanceAnalytics)
+
+```
+
+# Analysis of the first file
+
+```{r}
+# Load First dataset in R
+df_1 <- read.table("junk1.txt", header = TRUE, sep = "", dec = ".")
+head(df_1)
+
+```
+
+
+```{r}
+
+#Look at the structure
+str(df_1)
+
+
+```
+
+```{r}
+# look at descriptive statistics
+metastats_1 <- data.frame(describe(df_1))
+metastats_1 <- tibble::rownames_to_column(metastats_1, "STATS")
+metastats_1["pct_missing"] <- round(metastats_1["n"]/100, 3)
+head(metastats_1)
+
+```
+
+
+```{r}
+#look for missing values
+missing_values_1 <- metastats_1 %>%
+  filter(pct_missing < 1) %>%
+  dplyr::select(STATS, pct_missing) %>%
+  arrange(pct_missing)
+
+missing_values_1
+
+```
+
+
+```{r}
+
+unique(df_1$class)
+
+```
+
+```{r}
+df_class_1 <- df_1$class
+df_exp_1 <- subset(df_1, select = -class)
+head(df_exp_1)
+```
+
+```{r}
+# Look at correlation
+
+corr_1 <- round(cor(df_exp_1), 1)
+
+ggcorrplot(corr_1,
+           type="lower",
+           lab=TRUE,
+           lab_size=3,
+           method="circle",
+           colors=c("tomato2", "white", "springgreen3"),
+           title="Correlation between explanotary variables",
+           ggtheme=theme_bw)
+
+```
+
+
+```{r}
+
+# look at correlation and distribution
+chart.Correlation(df_exp_1, histogram=TRUE, pch=19)
+
+
+
+```
+
+
+
+```{r}
+
+#look at distribution of the class
+hist(df_class_1)
+
+
+
+```
+
+
+```{r}
+# look at outliers for a
+boxplot(df_exp_1$a)
+
+```
+
+```{r}
+# look at outliers for b
+boxplot(df_exp_1$b)
+
+
+
+```
+
+```{r}
+
+boxplot(df_class_1)
+
+
+```
+
+# Second Data File (csv)
+
+```{r}
+# Load second data set in R
+df_2 <- read.csv("junk2.csv", header = TRUE, sep = ",", dec = ".")
+head(df_2)
+
+```
+
+
+```{r}
+
+#Look at the structure
+str(df_2)
+
+
+```
+
+```{r}
+# look at descriptive statistics
+metastats_2 <- data.frame(describe(df_2))
+metastats_2 <- tibble::rownames_to_column(metastats_2, "STATS")
+metastats_2["pct_missing"] <- round(metastats_2["n"]/4000, 3)
+head(metastats_2)
+
+```
+
+
+```{r}
+#look for missing values
+missing_values_2 <- metastats_2 %>%
+  filter(pct_missing < 1) %>%
+  dplyr::select(STATS, pct_missing) %>%
+  arrange(pct_missing)
+
+missing_values_2
+
+```
+
+
+```{r}
+
+unique(df_2$class)
+
+```
+
+```{r}
+df_class_2 <- df_2$class
+df_exp_2 <- subset(df_2, select = -class)
+head(df_exp_2)
+```
+
+```{r}
+# Look at correlation
+
+corr_2 <- round(cor(df_exp_2), 1)
+
+ggcorrplot(corr_2,
+           type="lower",
+           lab=TRUE,
+           lab_size=3,
+           method="circle",
+           colors=c("tomato2", "white", "springgreen3"),
+           title="Correlation between explanotary variables",
+           ggtheme=theme_bw)
+
+```
+
+
+```{r}
+
+# look at correlation and distribution
+chart.Correlation(df_exp_2, histogram=TRUE, pch=19)
+
+
+
+```
+
+
+
+```{r}
+
+#look at distribution of the class
+hist(df_class_2)
+
+
+
+```
+
+
+```{r}
+# look at outliers for a
+boxplot(df_exp_2$a)
+
+```
+
+```{r}
+# look at outliers for b
+boxplot(df_exp_2$b)
+
+
+
+```
+
+```{r}
+
+boxplot(df_class_2)
+
+
+```
+
+# Combination of both datasets
+
+```{r}
+# Combine the two datasets
+
+df <- rbind(df_1, df_2)
+head(df)
+
+
+```
+
+## Descriptive Statistics
+
+```{r}
+
+#Look at the structure
+str(df)
+
+```
+
+```{r}
+# look at descriptive statistics
+metastats <- data.frame(describe(df))
+metastats <- tibble::rownames_to_column(metastats, "STATS")
+metastats["pct_missing"] <- round(metastats["n"]/4100, 3)
+head(metastats)
+
+```
+
+
+```{r}
+#look for missing values
+missing_values <- metastats %>%
+  filter(pct_missing < 1) %>%
+  dplyr::select(STATS, pct_missing) %>%
+  arrange(pct_missing)
+
+missing_values
+
+```
+
+
+```{r}
+
+unique(df$class)
+
+
+```
+
+
+```{r}
+df_class <- df$class
+df_exp <- subset(df, select = -class)
+head(df_exp)
+```
+
+```{r}
+# Look at correlation
+
+corr <- round(cor(df_exp), 1)
+
+ggcorrplot(corr,
+           type="lower",
+           lab=TRUE,
+           lab_size=3,
+           method="circle",
+           colors=c("tomato2", "white", "springgreen3"),
+           title="Correlation between explanotary variables",
+           ggtheme=theme_bw)
+
+```
+
+
+```{r}
+
+# look at correlation and distribution
+chart.Correlation(df_exp, histogram=TRUE, pch=19)
+
+
+
+```
+
+
+
+```{r}
+
+#look at distribution of the class
+hist(df_class)
+
+
+
+```
+
+
+There is a very very weak positive correlation between a and b. a and b distribution is normal. 
+
+
+```{r}
+# look at outliers for a
+boxplot(df_exp$a)
+
+```
+
+```{r}
+# look at outliers for b
+boxplot(df_exp$b)
+
+
+
+```
+
+```{r}
+
+boxplot(df_class)
+
+
+```
+
+
+#Findings for All the Datasets. 
+
+
+In our first dataset, we have 100 observations with 3 variables. (a,b,c). We dont have any missing values. We have a and b columns as explanotary variables, c as the target variable (class variable). Mean of a is 0.047, mean of b is 0.013, min of a is -2.298, min of b is -3.1717. Max of a is 3.00, max of b is 3.1. There is a weak correlation between a and b. Both a an b are normally distributed. The c(class) variable has two values of 1 and 2 , unified distribution. There are no outliers in a,b,c. 
+
+In our second dataset, we have 4000 observations with 3 variables. (a,b,c). We have a and b columns as explanotary variables, c as the target variable(class variable). Mean of a is -0.051, mean of b is 0.056, min of a is -4.165, min of b is -3.904. Max of a is 4.626, max of b is 4.310. There are no missing values. We have 0 and 1 as classes in our second data set as c(class) variable. The correlation of a nd b is weak and same as the first data set. a and b has normal distribution. c distribution is not uniform. We can consider 1 as an outlier. 
+
+In the combination of the dataset. We have total of 4100 observations, the mean of a and b is similar to the first two datasets but the minimum and maximum values of a and b are around 4 and -4 range. These values above 4 and below -4 are outliers. The second dataset (junk.csv) is introducing another class(0) to the first dataset and the distribution of this class is much higher(due to the amount of observations) that the classes in the first dataset(junk.txt) becomes outliers. 
+
+
+
