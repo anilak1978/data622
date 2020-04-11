@@ -1,0 +1,218 @@
+---
+title: "Homework2"
+author: "Anil Akyildirim"
+date: "4/10/2020"
+output: html_document
+---
+
+```{r}
+
+library(class)
+library(pROC)
+library(ROCR)
+library(caret)
+library(C50)
+library(naivebayes)
+library(e1071)
+library(naivebayes)
+library(MASS)
+library(mltools)
+
+
+```
+
+
+
+
+## Load Data
+
+```{r}
+# Create the Dataset
+x <- c(5,5,5,5,5,5,19,19,19,19,19,19,35,35,35,35,35,35,51,51,51,51,51,51,55,55,55,55,55,55,63,63,63,63,63,63)
+y <- c('a','b','c','d','e','f','a','b','c','d','e','f','a','b','c','d','e','f','a','b','c','d','e','f','a','b','c','d','e','f','a','b','c','d','e','f')
+label <- c('BLUE',	'BLACK',	'BLUE',	'BLACK',	'BLACK',	'BLACK', 	'BLUE',  'BLUE',  'BLUE',	'BLUE',	'BLACK',	'BLUE',	'BLACK',	'BLACK',	'BLUE',	'BLACK',	'BLACK',	'BLACK',	'BLACK',	'BLACK',	'BLUE',	'BLACK', 'BLACK',	'BLACK',	'BLACK',	'BLACK',	'BLACK',	'BLACK',	'BLACK',	'BLACK',	'BLACK',	'BLUE',	'BLUE',	'BLUE',	'BLUE',	'BLUE')
+
+
+df <- data.frame(x,y,label)
+
+df$y = as.numeric(df$y) 
+
+#Blue is 1 and Black is 0
+df$label <- ifelse(df$label=="BLUE", 1, 0)
+#df$label =as.numeric(df$label)
+df$label =as.factor(df$label)
+
+```
+
+## KNN 
+```{r}
+
+set.seed(12)
+
+##create a random number equal 60% of total number of rows
+ran <- sample(1:nrow(df),0.60 * nrow(df))
+##the normalization function is created
+#nor <-function(x) {(x -min(x))/(max(x)-min(x))}
+
+#df_norm <- as.data.frame(lapply(iris[,c(1,2)], nor))
+
+##training dataset extracted
+df_train <- df[ran,]
+ 
+##test dataset extracted
+df_test <- df[-ran,]
+
+#create model
+pr_knn <- knn(df_train,df_test,cl=df_train$label,k=10, prob=TRUE)
+confusionMatrix(pr_knn, df_test$label)
+
+#find auc
+df_test$label=as.numeric(df_test$label)
+auc_roc(pr_knn, df_test$label)
+```
+
+
+## Tree
+
+```{r}
+#create model
+df_test$label = as.factor(df_test$label)
+set.seed(2)
+pr_tree <- C5.0(df_train$label~., data=df_train)
+#table(predict(pr_tree, newdata = df_test), df_test$label)
+pred_tree <- predict(pr_tree, df_test, type="class")
+confusionMatrix(pred_tree, df_test$label)
+df_test$label=as.numeric(df_test$label)
+auc_roc(pred_tree, df_test$label)
+
+```
+
+
+
+
+## LR
+
+```{r}
+#creating model
+set.seed(123)
+pr_lr <- glm(label~., data=df_train, family = binomial(link = "logit"))
+pred_lr <-predict(pr_lr, newdata=df_test, type = "response")
+df_test$label=as.numeric(df_test$label)
+auc_roc(pred_lr, df_test$label)
+
+
+```
+
+## Naive Bayes
+
+```{r}
+#create a model
+set.seed(1234)
+pr_nb <- naive_bayes(label~., data=df_train)
+pred_nb <- predict(pr_nb, df_test)
+confusionMatrix(pred_nb, df_test$label)
+df_test$label=as.numeric(df_test$label)
+auc_roc(pred_nb, df_test$label)
+
+```
+
+
+
+
+## LDA
+
+```{r}
+#create a model
+set.seed(123456)
+pr_lda <- lda(label~., data=df_train)
+pred_lda <- predict(pr_lda, df_test)
+
+df_test$label=as.numeric(df_test$label)
+auc_roc(pred_lda, df_test$label)
+```
+
+## SVM
+
+
+```{r}
+set.seed(12323)
+pr_svm <- svm(label~., data=df_train, kernel="radial", cost=5, scale=F)
+pred_svm <- predict(pr_svm, df_test)
+confusionMatrix(pred_svm, df_test$label)
+
+df_test$label=as.numeric(df_test$label)
+auc_roc(pred_svm, df_test$label)
+
+```
+
+```{r}
+ALGO <- c("KNN", "TREE", "NB", "SVM", "LR")
+AUC <- c(0.525, 0.425, 0.625, 0.475, 0.67)
+ACC <- c(0.60, 0.73, 0.33, 0.66, 0.67)
+TPR <- c(0.9, 0.9, 0.5, 0.9, 0.9)
+FPR <- c(1,0.6,1,0.8,1)
+
+models <- data.frame(ALGO, AUC, ACC, TPR, FPR)
+models
+
+
+
+
+```
+
+
+
+
+
+APPENDIX (many versions I tried in the process)
+
+##the 2nd column of training dataset because that is what we need to predict about testing dataset
+##also convert ordered factor to normal factor
+df_target <- as.factor(df[ran,3])
+
+##the actual values of 2nd couln of testing dataset to compaire it with values that will be predicted
+ ##also convert ordered factor to normal factor
+test_target <- as.factor(df[-ran,3])
+#probability
+prob <- attr(pr_knn, "prob")
+
+
+
+
+#create prediction
+pred_knn <- prediction(prob, df_test$label)
+
+#tpr and fpr calculation
+performance_knn <- performance(pred_knn, "tpr", "fpr")
+plot(performance_knn)
+performance_knn
+
+tb_knn <- table(pr_knn,df_test$label)
+tb_knn
+##check the accuracy
+accuracy_knn <- function(x){sum(diag(x)/(sum(rowSums(x)))) * 100}
+accuracy_knn(tb_knn)
+confusionMatrix(pr_knn, test_target)
+
+roc(test_target, attributes(pr_knn)$prob)
+knn_accuracy <- 60
+knn_tpr <- 0.55
+knn_fpr <- 0.33
+knn_auc <- 0.611
+
+#pradmit.number<-as.numeric(pred_tree) 
+#actual.number<-as.numeric(test_target)
+table(pred_tree, test_target)
+pr<-prediction(pradmit.number,actual.number)
+confusionMatrix(pred_tree, test_target)
+performance_tree<-performance(pr,"tpr","fpr")
+performance_tree
+plot(performance_tree) 
+aucval<-performance(pr,measure="auc") 
+aucval@y.values[[1]]
+
+tree_accuracy <- 1
+tree_tpr <- 1
+tree_fpr <- 0
+tree_auc <- 1
+
