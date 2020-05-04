@@ -1,0 +1,617 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+--
+title: "Assignment-4"
+author: Anil Akyildirim
+date: "04/05/2020"
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    code_download: yes
+    code_folding: hide
+    highlight: pygments
+    number_sections: yes
+    theme: flatly
+    toc: yes
+    toc_float: yes
+---
+
+# Introduction
+
+Our new intern Kansales Ruffio analyzed a dataset car_eval_test and car_eval_train datasets test and training datasets we provided. The purpose of this document is to review his work, output of his analysis and provide feedback on how he can improve his approach to data science, identify the choice of his classifiers and compare the performance metrices.
+
+
+```{r}
+library(VGAM)
+library(caret)
+library(ggplot2)
+library(gridExtra)
+library(caret)
+library(MASS)
+library(MASS) 
+library(pROC)
+library(rpart.plot)
+library(randomForest)
+library(rpart)
+library(RColorBrewer)
+library(rattle)
+library(rpart.plot)
+library(ipred)
+library(gbm)
+library(randomForest)
+library(xgboost)
+library(Matrix)
+
+
+```
+
+
+
+
+```{r}
+
+traindatafile<-'car_eval_train.csv'
+trdata<-read.csv(traindatafile,head=T,sep=',')
+car_eval<-trdata
+names(car_eval)<-c("buying","maint","doors","persons","lug_boot","safety","class")
+names(trdata)<-c("buying","maint","doors","persons","lug_boot","safety","class")
+tstdatafile<-'car_eval_test.csv'
+tstdata<-read.csv(tstdatafile,head=T,sep=',')
+names(tstdata)<-names(car_eval)
+x<-tstdata[,1:6]
+y<-tstdata[[7]]
+```
+ 
+We will first quickly look at the dataset to understand predictor and response variables.
+
+```{r}
+
+
+head(trdata)
+
+
+```
+
+```{r}
+str(trdata)
+
+```
+
+```{r}
+
+unique(trdata$class)
+
+
+```
+
+```{r}
+
+colSums(is.na(trdata))
+
+```
+
+
+# Multinomial Logistic Regression (vglm)
+
+
+
+All variables are categorical, "class" is the response variable, our label where our models will tell us, based on the predictor variables we use, if the car is "unacc", "acc", "vgood", "good" condition. There are 4 levels in the label categorical variable.
+
+
+```{r}
+
+vglm_model<-vglm(class~buying+maint+doors+persons+lug_boot+safety,family = "multinomial",data=car_eval)
+
+
+```
+
+The first model our intern Kansales Ruffio chose is multinomial logistic regression classification. He used all the independent variables. As always, we are choosing a function to fit our model and prediction, based on certain assumptions. In this case Ruffio chose below possible assumptions;
+
+** The dependent variable (class) is a categorical variable and unordered variable. Unfortunately this may not be correct, If we look at the class variable, the categories can be ordered based on the car evaluation class. Such as a car that is evaluated as "vgood" might be higher or lower in the order than a car that is evaluated as "good". This does not mean that we can not use multiple logistic regression, but maybe ordinal logistic regression might have been preferred over multinomial. 
+
+** A car can be evaulated only one of these categorical variable. This assumption is correct as we can only assign one value to the car evaluation. It will be either "acc", "good" "unacc",  "vgood". 
+
+** The dependent(response) variable are typically coded as j=1,2,....m. They dont have to be coded with numbers, they can be coded with their decriptions. But for convinience purposes we could have coded as numbers. If we coded numbers we would also assume that these codes and their manitude wouldnt be interpreted. (wouldnt get means to summarize and etc...)
+
+
+**There needs to be independence of observeations and dependent variable(class) should have mutually exclusive.. We are assuming that the cars are completely independent and acc, good, unacc and vgood evaluations are mutually exclusive. This assumption can be acceptable. 
+
+
+** There should be no multicollinearity. Our possible independent variables; buying, maint, doors, persons, lug_boot and safety should be independent from each other. We dont see any analysis of distribution, skewness or outliers in the analysis. Since this is logistic regression, we dont need data to be normaly distributed but assuming he ran Chi-Squared test and confirmed independence and no multicollinearity. 
+
+
+```{r fig1, fig.height=8, fig.width= 15, fig.align='center'}
+s1 <- ggplot(trdata, aes(buying))+
+  geom_bar(aes(fill=maint), width = 0.5) + 
+  theme(axis.text.x = element_text(angle=65, vjust=0.6))
+
+s2 <- ggplot(trdata, aes(maint))+
+  geom_bar(aes(fill=doors), width = 0.5) + 
+  theme(axis.text.x = element_text(angle=65, vjust=0.6))
+
+s3 <- ggplot(trdata, aes(doors))+
+  geom_bar(aes(fill=buying), width = 0.5) + 
+  theme(axis.text.x = element_text(angle=65, vjust=0.6))
+
+s4 <- ggplot(trdata, aes(persons))+
+  geom_bar(aes(fill=lug_boot), width = 0.5) + 
+  theme(axis.text.x = element_text(angle=65, vjust=0.6))
+
+s5 <- ggplot(trdata, aes(lug_boot))+
+  geom_bar(aes(fill=buying), width = 0.5) + 
+  theme(axis.text.x = element_text(angle=65, vjust=0.6))
+
+s6 <- ggplot(trdata, aes(safety))+
+  geom_bar(aes(fill=lug_boot), width = 0.5) + 
+  theme(axis.text.x = element_text(angle=65, vjust=0.6))
+
+
+grid.arrange(s1, s2, s3, s4, s5, s6,nrow=2)
+
+```
+
+Let's look at the summary of Ruffio's vglm model.
+
+
+```{r}
+
+summary(vglm_model)
+
+
+```
+
+When we ran "vglm_model<-vglm(class~buying+maint+doors+persons+lug_boot+safety,family = "multinomial",data=car_eval)", we see a message that states certain vectors are replaced with other ones and "probabilities numerically 0 or 1" occured. 
+
+This might mean that, the classification problem we are dealing with will predict absolute probabilities such as 0 and 1. This also means that, for the particular value of the explanatory variables, there can be only two outcomes. My suggestion here would be, instead of performing the vglm multonimial logistic regression, maybe we could try stepwise logit to see, out of buying, maint, doors, persons, lug_boot and safety, which variable is creating this perfect separation. 
+
+Other option would be to increase a parameter to change the value of the iterations for the fishing scoring. (We are also getting this "SEs may be inaccurate due to convergence at a half-step." so fishing score is not enough for convergence). In this case the Number of Fisher scoring iterations is 15 , we can try to increase this to 50 maybe. 
+
+We can also see this in Warning "Warning: Hauck-Donner effect detected in the following estimate(s): '(Intercept):3', 'maintvhigh:1', 'lug_bootsmall:1', 'lug_bootsmall:2', 'safetylow:3', 'safetymed:1', 'safetymed:2'" This also means "Perfect seperation" 
+
+The idea to fix this issue is to add penalization to the regression model.
+
+With Multinomila Logistic Regression, we are making little assumptions on the probability and applying discriminative algorithm(discriminative counterpart of Naive Bayes). We are using maximum likelyhod estimate, which we want to choose parameters that we maximize the conditional likelihood. This is the probability of the observered response variable values (class) in the training data trdata on the dependent varailes (Features, buying, maint, doors, persons, lug_boot, safety). In this case, we are not looking at the data distributions, we model the P(class|dependent variables) directly. Let's see how Ruffio found the probabilities, predicted values and confusion matrix for the predictions.
+
+
+```{r}
+vglm_class_probabilities<-predict(vglm_model,tstdata[,1:6],type="response")
+
+vglm_predicted_class<-apply(vglm_class_probabilities,1,which.max)
+
+vglm_pred<-c()
+vglm_pred[which(vglm_predicted_class=="1")]<-levels(y)[1]
+vglm_pred[which(vglm_predicted_class=="2")]<-levels(y)[2]
+vglm_pred[which(vglm_predicted_class=="3")]<-levels(y)[3]
+vglm_pred[which(vglm_predicted_class=="4")]<-levels(y)[4]
+
+vglm_mtab<-table(vglm_pred,tstdata[[7]])
+(vglm_cmx<-confusionMatrix(table(vglm_pred,tstdata[[7]])))
+
+(vglm_accuracy<-sum(diag(vglm_mtab))/sum(vglm_mtab))
+```
+
+We see that the accuracy of the model is high with 93% accurate. P-value is really low. Since our output is more than two classes (multinomial) we see that we have 4 different combinations of predicted and actual values. Out of all the classed the model predicts 93% correctly. True positive for acc is 106, True Positive for good is 17, True positive for unacc is 337 and True positive for vgood is 22. True positive rate (sensitivity) is 100% for vgood explanatory variables. As previously mentioned, we might want to add penalization to the model. Kappa score is 85% which indicates our model performed well compared to how it would have performed by chance. This also indicates there is a big difference between the accuracy and the null error rate. When we look at the specifity , we also see high True-Negative Rate for each classs.The proportion of observed negatives that were predicted to be negatives(in other class for each class). Again, we are seeing very high (99%) rate for vgood. 
+
+Since we have more than 2 classes, the true positive and negative measures may not be that meaningful, so we focus on accuracy and error in this case. 
+
+# Linear Discriminant Analysis (lda)
+
+Ruffio's second model is using Linear Discriminant Analysis. This linear classification rule is preferred if the response categorical variable has more than two classes which is the case in our data set. In order to apply linear discriminant classification rule Ruffio made certain assumptions. The first one is that, the data is Gaussian(mean and variance). Each variable is shaped like a bell curve when we plot them. The second one is that, each variable has the same variance and the values of each variable vary around the same mean.  The assumption of that everything must belong to one part or the other and nothing can belong simulataneously to both parts in the car class evaluation is met. Let's look at the distribution of each variable. (We have done a similar one earlier prior to find correlation betweeen independent variables).
+
+
+
+```{r fig2, fig.height=8, fig.width= 15, fig.align='center'}
+a1 <- ggplot(trdata, aes(buying))+
+  geom_bar() + 
+  theme(axis.text.x = element_text(angle=65, vjust=0.6))
+
+a2 <- ggplot(trdata, aes(maint))+
+  geom_bar() + 
+  theme(axis.text.x = element_text(angle=65, vjust=0.6))
+
+a3 <- ggplot(trdata, aes(doors))+
+  geom_bar() + 
+  theme(axis.text.x = element_text(angle=65, vjust=0.6))
+
+a4 <- ggplot(trdata, aes(persons))+
+  geom_bar() + 
+  theme(axis.text.x = element_text(angle=65, vjust=0.6))
+
+a5 <- ggplot(trdata, aes(lug_boot))+
+  geom_bar() + 
+  theme(axis.text.x = element_text(angle=65, vjust=0.6))
+
+a6 <- ggplot(trdata, aes(safety))+
+  geom_bar() + 
+  theme(axis.text.x = element_text(angle=65, vjust=0.6))
+
+a7 <- ggplot(trdata, aes(class))+
+  geom_bar() + 
+  theme(axis.text.x = element_text(angle=65, vjust=0.6))
+
+grid.arrange(a1, a2, a3, a4, a5, a6, a7, nrow=3)
+
+
+```
+
+We see the distribution of the explanatory variable is uniformly distributed (not a bell shape at all), however the class variable distribution is not uniform or normaly distributed. We might want to consider transformation (logm root, box-cox), remove any outliers. 
+
+His purpose is to find the linear combinations of the explanatory variables (buying, maint, doors, persons, lug_boot, safety, class) that gives the best possible seperation between the class(acc, good, unacc, vgood). We have 4 levels in our class that we are trying to predict. The maximum number of discriminant functions that can separate the classes by the evaluation is the minimum of 3 and 6(explanatory variables. The minimum between 2 and 6 is 2. We can find the most 3 useful discriminant functions to seperate the classes using 6 explanatory variables. Let's see Ruffio's model.
+
+
+```{r}
+
+lda_model<-lda(class~buying+maint+doors+persons+lug_boot+safety,data=car_eval)
+lda_model
+
+
+```
+
+
+Basically we can create the discriminant functions using these 3 LDvalues for each class. (Example: -0.7899 * buyyinglow -0.7899 * buyingmed.....) When we look at the proportion of trace for each possible function, we can say that the percentage seperation achived for LDA1 (88%) is the highest.  With LDA we are estimating probabilities that each test observation belongs to a class. The class that gets the highest probability is the output class and prediction is made. Let's look at Ruffio's probability estimates and predictions.
+
+
+```{r}
+lda_class_probabilities<-predict(lda_model,tstdata[,1:6],type="response")
+
+(lda_cmx<-table(lda_class_probabilities$class,tstdata[[7]]))
+lda_mtab<-table(lda_class_probabilities$class,tstdata[[7]])
+(lda_accuracy<-sum(diag(lda_cmx))/sum(lda_cmx))
+lda_cmx<-confusionMatrix(table(lda_class_probabilities$class,tstdata[[7]]))
+lda_cmx
+
+```
+
+We have an accuracy of 83%. The model predicts 83% correctly. True positive for acc is 107 for, True Positive for good is 9, True positive for unacc is 327 and True positive for vgood is 13. True positive rate (sensitivity) is really low for good (39%). Kappa score is 75% which is lower than the first model. Again, since we have more than 2 classes, the true positive and negative measures may not be that meaningful, so we focus on accuracy and error in this case. Accuracy is lower than the first model, however, as we mentioned earlier, we might want to apply a penalty to the multinomial logistic regression model we created earlier. 
+
+We can also suggest Ruffio to take the predictions and plot them to see the results in different groups. For example, create a scatter plot between groups of predictions. 
+
+```{r}
+
+car.lda.values <- predict(lda_model)
+plot(car.lda.values$x[,1],car.lda.values$x[,2]) # make a scatterplot
+
+
+```
+
+
+# Decision Tree(rpart) 
+
+In his third model, Ruffio is using decision tree classification model with rpart function. If we remember KNN's main assumption which is similar inputs have similar similar neighbours where it would imply that the data points are sprinkled across the spave, but instead they are in cluster or more or less homogenous class assignments, Decision tree exploits this assumption and takes further. In Decision tree assumptions, we are building a tree like structure that divides the space into regions with similar labels. Begining of the tree is the root. Another assumption is that we would like the feature set to be all categorical. (Which is the case in our dataset). We want the variables to be distributed recursively based on the explanatory feature set. 
+
+```{r}
+
+rpart_model<-rpart(class~buying+maint+doors+persons+lug_boot+safety,data=car_eval)
+rpart_class_probabilities<-predict(rpart_model,tstdata[,1:6],type="class")
+
+(rpart_mtab<-table(rpart_class_probabilities,tstdata[[7]]))
+rpart_cmx<-confusionMatrix(rpart_mtab)
+(rpart_accuracy<-sum(diag(rpart_mtab))/sum(rpart_mtab))
+rpart_cmx
+
+```
+
+
+
+
+```{r}
+rpart_model
+
+
+
+```
+
+
+
+We have 6 features (n=6) in our model. It looks like we selected unacc as the root of our tree, we split the first time based on persons value, further we split the same data set based on safety feature in the second node. Our accuracy is 92%, which is pretty good. However we should keep in mind that one of the drawbacks of decision trees is probability of overfitting. Our Kappa value is high as well. 
+
+
+```{r fig3, fig.height=8, fig.width= 15, fig.align='center'}
+
+fancyRpartPlot(rpart_model, caption = NULL)
+
+
+```
+
+
+We are using rpart package and by default this uses gini impurity to select the splits. We might also suggest Ruffio that he can use information gain when specifying the splits in the parms parameter. rpart also has a complexity of a tree measure which is defined with cp() parameter. Since decision trees tend to produce over-fitting, we might want to ensure that this parameter is not set to negative.
+
+
+## Bagging
+
+
+The assumption for Ruffio to perform baggins is that we want to reduce the error and with that reduce the variance term. (Error = Variance + Bias + Noise). In order to do that, he is applying bagging which is easy to implement, reduces the variance. 
+
+```{r}
+
+bag_model<-bagging(class~buying+maint+doors+persons+lug_boot+safety,data=car_eval)
+bag_model
+
+```
+
+```{r}
+bag_class_probabilities<-predict(bag_model,tstdata[,1:6])#,type="response")
+(bag_mtab<-table(bag_class_probabilities,tstdata[[7]]))
+(bag_cmx<-confusionMatrix(bag_mtab))
+(bag_accuracy<-sum(diag(bag_mtab))/sum(bag_mtab))
+
+
+
+```
+
+The model accuracy is higher than any of the other models we created. 98% accurate. And Kappa is also 95%. We are not seeing any specific method that is added to the model such as method or trControl. We might want to consider adding these. The assumption is the Resampling happened as Cross-Validation(10 folds). However, we can say that so far this is the best model Ruffio created. 
+
+# Gradient Boosting Model
+
+With the gradient boosting model, Ruffio wants to convert weak learners into strong learners. But, can weak learners be combined to generate strong learner with low bias? (Yes we can https://www.cs.princeton.edu/~schapire/papers/strengthofweak.pdf). With boosting we create a ensemble classifier with iteration similar to gradient descent. Instead of updating the model parameters in each step, we are adding a function to the ensemble. With Gradient Boosted Regression Tree, we are applying classification rule.
+
+With each new tree is a fit on a modified version of the original training data set (trdata)
+
+
+```{r}
+
+
+nlev<-4 # number of classes
+gbm_model<-gbm(class~buying+maint+doors+persons+lug_boot+safety, 	
+data=car_eval,n.trees=5000,interaction.depth=nlev, shrinkage=0.001,bag.fraction=0.8,distribution="multinomial",verbose=FALSE,n.cores=4)
+
+
+```
+
+
+In this model, Ruffio used all the explanatory variables with 5000 tree splits and for 4 classes (as class has 4 levels)
+
+```{r}
+
+gbm_class_probabilities<-predict(gbm_model,tstdata[,1:6],n.trees=5000,type="response")
+gbm_pred<-apply(gbm_class_probabilities,1,which.max)
+
+gbm_predicted_class<-unlist(lapply(gbm_pred,FUN=function(x)levels(tstdata[[7]])[[x]]))
+
+(gbm_mtab<-table(gbm_predicted_class,tstdata[[7]]))
+(gbm_accuracy<-sum(diag(gbm_mtab))/sum(gbm_mtab))
+
+```
+
+
+This model generates 5000 trees and shrinkage parameter lambda is 0.001 which is also can be seen as the learning rate. Depth is  the total splits we want to do which is 4 splits. 
+
+```{r}
+
+summary(gbm_model)
+
+
+```
+
+
+
+As we can see the importance of the features, we see doors is not that important and doesnt influence the classification that much. 
+
+```{r}
+plot(gbm_model, i="safety")
+plot(gbm_model, i="persons")
+plot(gbm_model, i="buying")
+plot(gbm_model, i="maint")
+plot(gbm_model, i="lug_boot")
+plot(gbm_model, i="doors")
+
+
+```
+
+Accuracy of the model is the highest so far 96%. As we increase the trees , we will notice that the accuracy will increase.
+
+# Gradient Boosting Model 2
+
+```{r}
+
+gbm_model2<-gbm(class~buying+maint+doors+persons+lug_boot+safety,data=car_eval,n.trees=5000,interaction.depth=nlev,
+shrinkage=0.001,bag.fraction=0.8,distribution="multinomial",
+verbose=FALSE,n.cores=4)
+gbm_class_probabilities2<-predict(gbm_model2,tstdata[,1:6],n.trees=5000,type="response")
+gbm_pred2<-apply(gbm_class_probabilities2,1,which.max)
+gbm_pred2[which(gbm_pred2=="1")]<-levels(tstdata[[7]])[1]
+gbm_pred2[which(gbm_pred2=="2")]<-levels(tstdata[[7]])[2]
+gbm_pred2[which(gbm_pred2=="3")]<-levels(tstdata[[7]])[3]
+gbm_pred2[which(gbm_pred2=="4")]<-levels(tstdata[[7]])[4]
+gbm_pred2<-as.factor(gbm_pred2)
+l<-union(gbm_pred2,tstdata[[7]])
+(gbm_mtab2<-table(factor(gbm_pred2,l),factor(tstdata[[7]],l)))
+(gbm_accuracy2<-sum(diag(gbm_mtab2))/sum(gbm_mtab2))
+(gbm_cmx2<-confusionMatrix(gbm_mtab2))
+
+
+```
+
+```{r}
+
+summary(gbm_model2)
+
+
+```
+
+
+We see the model accuracy is similar to the first GBM model. In this case we added "multinomial" distribution. The assumption is after evaluating the first tree in the model, we increase the weights of the obversvations and increase the ones that are difficult to classif the car evaluation class, and give lower weights to the ones that are easy to classify. This creates the imprvement.
+
+The GBM Model is  proine to overfitting so we do want to applu hyperparameter tunning. We want to tune the number of iterations to stop early if required. We can suggest Ruffino to find the test error for certain number of trees in sequence such as 100, 1000, up to 10000 to see the performance pattern. We can suggest him to apply specific arguement called "c.v folds" while training the model. We can also define the number of iterations (gbm.perf()). 
+
+# Gradient Boosting Model 3
+
+```{r}
+
+nlev<-5 # number of classes+1
+gbm_model3<-gbm(class~buying+maint+doors+persons+lug_boot+safety, 	
+data=car_eval,n.trees=5000,interaction.depth=nlev,
+	shrinkage=0.001,bag.fraction=0.8,distribution="multinomial",verbose=FALSE,n.cores=4)
+gbm_class_probabilities3<-predict(gbm_model3,tstdata[,1:6],n.trees=5000,type="response")
+gbm_pred3<-apply(gbm_class_probabilities3,1,which.max)
+##############
+gbm_pred3[which(gbm_pred3=="1")]<-levels(tstdata[[7]])[1]
+gbm_pred3[which(gbm_pred3=="2")]<-levels(tstdata[[7]])[2]
+gbm_pred3[which(gbm_pred3=="3")]<-levels(tstdata[[7]])[3]
+gbm_pred3[which(gbm_pred3=="4")]<-levels(tstdata[[7]])[4]
+gbm_pred3<-as.factor(gbm_pred3)
+l<-union(gbm_pred3,tstdata[[7]])
+(gbm_mtab3<-table(factor(gbm_pred3,l),factor(tstdata[[7]],l)))
+(gbm_accuracy3<-sum(diag(gbm_mtab3))/sum(gbm_mtab3))
+(gbm_cmx3<-confusionMatrix(gbm_mtab3))
+
+###################
+#gbm_predicted_class3<-unlist(lapply(gbm_pred3,FUN=function(x)levels(tstdata[[7]])[[x]]))
+
+#(gbm_mtab3<-table(gbm_predicted_class3,tstdata[[7]]))
+#(gbm_accuracy3<-sum(diag(gbm_mtab3))/sum(gbm_mtab3))
+#(gbm_cmx3<-confusionMatrix(gbm_mtab3))
+
+
+
+```
+
+
+With the 3rth Gradient Boosting Model, the accuracy went down slightly to 97% , along with the Kappa value(94%). The difference in this model is that we are defining number of cores as 4. We dont know if we neccessarily have to define this. We re asking cross-validation loop to attemp different CV folds to different cores. 
+
+
+# Random Forest
+
+The idea is that we will aggregate the predictions made by multiple different decision trees of varying depth. It is extension of classification trees. Ruffio didnt need to make much assumptions as random forests are non parametrci and can handle skewness and multi modal data as well as categorical data that are ordinal and non-ordinal. These not complicated assumptions met by our data set. Random Fores tend to be very accurate but can overfit data sets. 
+
+
+```{r}
+
+rf_model<-randomForest(class~buying+maint+doors+persons+lug_boot+safety, data=car_eval)
+summary(rf_model)
+
+
+```
+
+
+```{r}
+rf_model
+
+
+
+```
+
+```{r}
+
+plot(rf_model)
+
+
+```
+
+
+
+As we increase the trees, we see for each class the error tends to go down. He defined the number of trees as 500 which seems to be ok. 
+
+
+
+```{r}
+
+rf_pred<-predict(rf_model,tstdata[,1:6])
+rf_mtab<-table(rf_pred,tstdata[[7]])
+rf_cmx<-confusionMatrix(rf_mtab)
+rf_cmx$overall
+rf_cmx$byClass
+
+
+```
+
+
+We see the accuracy is 96% which is slightly lower than earlier models. Sensitivity and Specifity is lower but we dont really care on the True Positve and True Negative values due to multiple classes. We will suggest to find the Out of Bag Error Rate with Cross Valuidation to make sure the predicted results are not over estimated. We can also suggest to define the optimal mtry parameter, number of candidates to feed the algrorithm as by default this is the square of the number of columns(49). We can also ask the model to asess the importance of the each independent variable by adding importance=True parameter.
+
+We can also suggest Ruffio to apply optimization(tunning) of the model by Random Search and Grid Search methods.
+
+
+# XGBoost (Extreme Gradient Boost) 1
+
+
+He made the same assumptions as the Gradient Boost Models, but wanted to increase speed of the prediction and density of the input. There is no sparsity in the data which tree boster can be applied if it existed. The idea is similarly to reduce variance with resampled data that increases the generalization. My assumption is that with XGBoost he basically wanted to optimize the GBM Models he created. 
+
+
+```{r}
+
+trdatamx<-sparse.model.matrix(class~.-1,data=trdata)
+tstdatamx<-sparse.model.matrix(class~.-1,data=tstdata)
+
+xgb_model<-xgboost(data=trdatamx,label=trdata$class,max_depth = 2, 
+eta = 1, nrounds = 2,nthread = 2, objective = "multi:softmax",num_class=5)
+
+xgb_pred <- predict(xgb_model,tstdatamx)
+xgb_tab<-table( xgb_pred)
+xgb_mtab<-table(xgb_pred,tstdata[[7]])
+#xgb_cmx<-confusionMatrix(xgb_mtab)
+#xgb_cmx$overall
+#xgb_cmx$byClass
+
+
+```
+
+
+```{r}
+
+summary(xgb_model)
+
+```
+
+```{r}
+
+xgb_mtab
+
+```
+
+# XGBoost (Extreme Gradient Boost) 4
+
+```{r}
+
+xgb_model4<-xgboost(data=trdatamx,label=trdata$class,max_depth = 4, 
+eta = 1, nrounds = 3,nthread = 2, objective = "multi:softmax",num_class=5)
+ xgb_pred4 <- predict(xgb_model4,tstdatamx)
+xgb_tab4<-table( xgb_pred4)
+temp_xgb_tab4<-xgb_tab4
+
+xgb_pred4[which(xgb_pred4=="1")]<-levels(y)[1]
+xgb_pred4[which(xgb_pred4=="2")]<-levels(y)[2]
+xgb_pred4[which(xgb_pred4=="3")]<-levels(y)[3]
+xgb_pred4[which(xgb_pred4=="4")]<-levels(y)[4]
+xgb_mtab4<-table(xgb_pred4,tstdata[[7]])
+xgb_cmx4<-confusionMatrix(xgb_mtab4)
+xgb_cmx4$overall
+xgb_cmx4$byClass
+
+
+
+```
+
+# XGBoost (Extreme Gradient Boost) 5
+
+```{r}
+xgb_model5<-xgboost(data=trdatamx,label=trdata$class,max_depth = 5, 
+eta = 1, nrounds = 4,nthread = 2, objective = "multi:softmax",num_class=5)
+ xgb_pred5 <- predict(xgb_model5,tstdatamx)
+table( xgb_pred5)
+
+xgb_tab5<-table( xgb_pred5)
+temp_xgb_tab5<-xgb_tab5
+
+xgb_pred5[which(xgb_pred5=="1")]<-levels(y)[1]
+xgb_pred5[which(xgb_pred5=="2")]<-levels(y)[2]
+xgb_pred5[which(xgb_pred5=="3")]<-levels(y)[3]
+xgb_pred5[which(xgb_pred5=="4")]<-levels(y)[4]
+xgb_mtab5<-table(xgb_pred5,tstdata[[7]])
+xgb_cmx5<-confusionMatrix(xgb_mtab5)
+xgb_cmx5$overall
+xgb_cmx5$byClass
+
+```
+
+Based on the 3 XGBoost Models Ruffio created, we can suggest him to look at the importance. In the first model, the confusion matrix not populating to display the accuracy and other coeffiecients due to missing test label aurgument. he used objective aurgument ("multi:softmax) to define the objective function for multinomial tree. in his second model he increased the number of iterations to 4 for optimization. To avoid overfitting we can recommend him to add early.stop.round hence maximize parameters. 
+
+
+# Conclusion
+
+
+In Conclusion, we can recommend Ruffio to drop or fix the first Multinomial Model and optimize, GBM, Random Forest and XGBoost Models to further re-evaluate to pick the model to sovle the classification problem (Predicting class evalution of a car).
+
