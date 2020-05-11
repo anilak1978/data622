@@ -1,0 +1,77 @@
+[[1]]
+                       
+bag_class_probabilities setosa versicolor virginica
+             setosa         10          0         0
+             versicolor      0         10         2
+             virginica       0          0         8
+
+[[2]]
+                   
+gbm_predicted_class setosa versicolor virginica
+         setosa         10          0         0
+         versicolor      0         10         2
+         virginica       0          0         8
+
+[[3]]
+            
+             setosa versicolor virginica
+  setosa         10          0         0
+  versicolor      0         10         2
+  virginica       0          0         8
+
+[[4]]
+            
+             setosa versicolor virginica
+  setosa         10          0         0
+  versicolor      0         10         2
+  virginica       0          0         8
+
+[[5]]
+            
+             setosa versicolor virginica
+  setosa         10          0         0
+  versicolor      0         10         1
+  virginica       0          0         9
+
+[[6]]
+                           
+predicted_class_multinomial setosa versicolor virginica
+                 setosa         10          0         0
+                 versicolor      0         10         2
+                 virginica       0          0         8
+
+[[7]]
+            
+rf_pred      setosa versicolor virginica
+  setosa         10          0         0
+  versicolor      0         10         2
+  virginica       0          0         8
+
+[[8]]
+                         
+rpart_class_probabilities setosa versicolor virginica
+               setosa         10          0         0
+               versicolor      0          9         0
+               virginica       0          1        10
+
+[[9]]
+            
+xgb_pred     setosa versicolor virginica
+  setosa         10          0         0
+  versicolor      0         10         2
+  virginica       0          0         8
+
+[[10]]
+            
+xgb_pred4    setosa versicolor virginica
+  setosa         10          0         0
+  versicolor      0         10         2
+  virginica       0          0         8
+
+[[11]]
+            
+xgb_pred5    setosa versicolor virginica
+  setosa         10          0         0
+  versicolor      0         10         1
+  virginica       0          0         9
+
